@@ -35,6 +35,7 @@ type ConnectionTracker interface {
 }
 
 //////////////////////////////////////
+// TODO: Move aggregators to a file
 type aggregator interface {
 	update(impl connType, flowLog config.GenericMap)
 }
