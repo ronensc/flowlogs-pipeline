@@ -37,12 +37,14 @@ type ConnectionTracker interface {
 //////////////////////////////////////
 // TODO: Move aggregators to a file
 type aggregator interface {
-	update(impl connType, flowLog config.GenericMap)
+	addField(impl connType)
+	update(impl connType, flowLog config.GenericMap, d direction)
 }
 
 type aggregateBase struct {
 	inputField  string
 	outputField string
+	splitAB     bool
 }
 
 type aggregateSum struct {
@@ -61,32 +63,64 @@ type aggregateMax struct {
 	aggregateBase
 }
 
-func (agg aggregateSum) update(conn connType, flowLog config.GenericMap) {
+func (agg aggregateBase) getOutputField(d direction) string {
+	outputField := agg.outputField
+	if agg.splitAB {
+		switch d {
+		case dirAB:
+			outputField += "_AB"
+		case dirBA:
+			outputField += "_BA"
+		default:
+			// TODO: error
+		}
+	}
+	return outputField
+}
+
+func (agg aggregateBase) addField(conn connType) {
+	if agg.splitAB {
+		conn.aggFields[agg.getOutputField(dirAB)] = 0
+		conn.aggFields[agg.getOutputField(dirBA)] = 0
+	} else {
+		conn.aggFields[agg.getOutputField(dirNA)] = 0
+	}
+}
+
+func (agg aggregateSum) update(conn connType, flowLog config.GenericMap, d direction) {
+	outputField := agg.getOutputField(d)
+	// TODO: handle missing inputField in flowLog in all update() functions
 	aggValue, err := utils.ConvertToFloat64(flowLog[agg.inputField])
 	if err != nil {
 		// TODO: log...
+		return
 	}
-	conn.aggFields[agg.outputField] += aggValue
+	conn.aggFields[outputField] += aggValue
 }
 
-func (agg aggregateCount) update(conn connType, flowLog config.GenericMap) {
-	conn.aggFields[agg.outputField]++
+func (agg aggregateCount) update(conn connType, flowLog config.GenericMap, d direction) {
+	outputField := agg.getOutputField(d)
+	conn.aggFields[outputField]++
 }
 
-func (agg aggregateMin) update(conn connType, flowLog config.GenericMap) {
+func (agg aggregateMin) update(conn connType, flowLog config.GenericMap, d direction) {
+	outputField := agg.getOutputField(d)
 	aggValue, err := utils.ConvertToFloat64(flowLog[agg.inputField])
 	if err != nil {
 		// TODO: log...
+		return
 	}
-	conn.aggFields[agg.outputField] = math.Min(conn.aggFields[agg.outputField], aggValue)
+	conn.aggFields[outputField] = math.Min(conn.aggFields[outputField], aggValue)
 }
 
-func (agg aggregateMax) update(conn connType, flowLog config.GenericMap) {
+func (agg aggregateMax) update(conn connType, flowLog config.GenericMap, d direction) {
+	outputField := agg.getOutputField(d)
 	aggValue, err := utils.ConvertToFloat64(flowLog[agg.inputField])
 	if err != nil {
 		// TODO: log...
+		return
 	}
-	conn.aggFields[agg.outputField] = math.Max(conn.aggFields[agg.outputField], aggValue)
+	conn.aggFields[outputField] = math.Max(conn.aggFields[outputField], aggValue)
 }
 
 //////////////////////////////////////
@@ -94,25 +128,29 @@ func (agg aggregateMax) update(conn connType, flowLog config.GenericMap) {
 type conntrackImpl struct {
 	config api.ConnTrack
 	hasher hash.Hash
-	// TODO: use type hash?
+	// TODO: should the key of the map be a custom hashStrType instead of string?
 	hash2conn   map[string]connType
 	aggregators []aggregator
 }
 
-type hashStr string
-
 type connType struct {
-	hash      hashStr
+	hash      *totalHashType
 	keys      config.GenericMap
 	aggFields map[string]float64
 }
 
 func (c connType) toGenericMap() config.GenericMap {
-	// TODO:
-	return config.GenericMap{}
+	gm := config.GenericMap{}
+	for k, v := range c.aggFields {
+		gm[k] = v
+	}
+	// In case of a conflict between the keys and the aggFields, the keys should prevail.
+	for k, v := range c.keys {
+		gm[k] = v
+	}
+	return gm
 }
 
-// TODO: Decode decodes input strings to a list of flow entries
 func (ct *conntrackImpl) ConnectionTrack(flowLogs []config.GenericMap) []config.GenericMap {
 	log.Debugf("Entering ConnectionTrack")
 	log.Debugf("ConnectionTrack none, in = %v", flowLogs)
@@ -125,14 +163,14 @@ func (ct *conntrackImpl) ConnectionTrack(flowLogs []config.GenericMap) []config.
 			// TODO: handle error
 			continue
 		}
-		hashStr := hex.EncodeToString(hash)
+		hashStr := hex.EncodeToString(hash.hashTotal)
 		conn, exists := ct.hash2conn[hashStr]
 		if !exists {
-			conn = NewConn(fl)
+			conn = NewConn(fl, hash)
 			ct.addConnection(hashStr, conn)
 			outputRecords = append(outputRecords, conn.toGenericMap())
 		} else {
-			ct.updateConnection(conn, fl)
+			ct.updateConnection(conn, fl, hash)
 		}
 	}
 	return outputRecords
@@ -140,18 +178,39 @@ func (ct *conntrackImpl) ConnectionTrack(flowLogs []config.GenericMap) []config.
 
 func (ct conntrackImpl) addConnection(hashStr string, conn connType) {
 	// TODO:
+	for _, agg := range ct.aggregators {
+		agg.addField(conn)
+	}
 	ct.hash2conn[hashStr] = conn
 }
 
-func (ct conntrackImpl) updateConnection(conn connType, flowLog config.GenericMap) {
+type direction uint8
+
+const (
+	dirNA direction = iota
+	dirAB
+	dirBA
+)
+
+func (ct conntrackImpl) updateConnection(conn connType, flowLog config.GenericMap, flowLogHash *totalHashType) {
+	d := dirNA
+	if ct.config.KeyDefinition.Hash.FieldGroupARef != "" {
+		if hex.EncodeToString(conn.hash.hashA) == hex.EncodeToString(flowLogHash.hashA) {
+			// A -> B
+			d = dirAB
+		} else {
+			// B -> A
+			d = dirBA
+		}
+	}
 	for _, agg := range ct.aggregators {
-		agg.update(conn, flowLog)
+		agg.update(conn, flowLog, d)
 	}
 }
 
-func NewConn(flowLog config.GenericMap) connType {
-	// TODO
-	return connType{}
+func NewConn(flowLog config.GenericMap, hash *totalHashType) connType {
+	// TODO: add keys
+	return connType{hash: hash}
 }
 
 // TODO: NewDecodeNone create a new decode

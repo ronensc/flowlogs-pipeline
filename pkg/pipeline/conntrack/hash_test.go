@@ -206,9 +206,9 @@ func TestComputeHash_Bidirectional(t *testing.T) {
 			require.NoError(t, err1)
 			require.NoError(t, err2)
 			if test.sameHash {
-				require.Equal(t, h1, h2)
+				require.Equal(t, h1.hashTotal, h2.hashTotal)
 			} else {
-				require.NotEqual(t, h1, h2)
+				require.NotEqual(t, h1.hashTotal, h2.hashTotal)
 			}
 		})
 	}
