@@ -19,9 +19,14 @@ package conntrack
 
 import (
 	"encoding/hex"
+	"fmt"
+	"hash"
+	"hash/fnv"
+	"math"
 
 	"github.com/netobserv/flowlogs-pipeline/pkg/api"
 	"github.com/netobserv/flowlogs-pipeline/pkg/config"
+	"github.com/netobserv/flowlogs-pipeline/pkg/pipeline/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -29,18 +34,76 @@ type ConnectionTracker interface {
 	ConnectionTrack(flowLogs []config.GenericMap) []config.GenericMap
 }
 
-type conntrackImpl struct {
-	config api.ConnTrack
-	// TODO: use type hash?
-	hash2conn map[string]connType
+//////////////////////////////////////
+type aggregator interface {
+	update(impl connType, flowLog config.GenericMap)
 }
 
-type hash string
+type aggregateBase struct {
+	inputField  string
+	outputField string
+}
+
+type aggregateSum struct {
+	aggregateBase
+}
+
+type aggregateCount struct {
+	aggregateBase
+}
+
+type aggregateMin struct {
+	aggregateBase
+}
+
+type aggregateMax struct {
+	aggregateBase
+}
+
+func (agg aggregateSum) update(conn connType, flowLog config.GenericMap) {
+	aggValue, err := utils.ConvertToFloat64(flowLog[agg.inputField])
+	if err != nil {
+		// TODO: log...
+	}
+	conn.aggFields[agg.outputField] += aggValue
+}
+
+func (agg aggregateCount) update(conn connType, flowLog config.GenericMap) {
+	conn.aggFields[agg.outputField]++
+}
+
+func (agg aggregateMin) update(conn connType, flowLog config.GenericMap) {
+	aggValue, err := utils.ConvertToFloat64(flowLog[agg.inputField])
+	if err != nil {
+		// TODO: log...
+	}
+	conn.aggFields[agg.outputField] = math.Min(conn.aggFields[agg.outputField], aggValue)
+}
+
+func (agg aggregateMax) update(conn connType, flowLog config.GenericMap) {
+	aggValue, err := utils.ConvertToFloat64(flowLog[agg.inputField])
+	if err != nil {
+		// TODO: log...
+	}
+	conn.aggFields[agg.outputField] = math.Max(conn.aggFields[agg.outputField], aggValue)
+}
+
+//////////////////////////////////////
+
+type conntrackImpl struct {
+	config api.ConnTrack
+	hasher hash.Hash
+	// TODO: use type hash?
+	hash2conn   map[string]connType
+	aggregators []aggregator
+}
+
+type hashStr string
 
 type connType struct {
-	hash      hash
+	hash      hashStr
 	keys      config.GenericMap
-	aggFields config.GenericMap
+	aggFields map[string]float64
 }
 
 func (c connType) toGenericMap() config.GenericMap {
@@ -56,7 +119,7 @@ func (ct *conntrackImpl) ConnectionTrack(flowLogs []config.GenericMap) []config.
 	var outputRecords []config.GenericMap
 	for _, fl := range flowLogs {
 		// TODO: think of returning a string rather than []byte
-		hash, err := ComputeHash(fl, ct.config.KeyFields)
+		hash, err := ComputeHash(fl, ct.config.KeyDefinition, ct.hasher)
 		if err != nil {
 			// TODO: handle error
 			continue
@@ -81,19 +144,7 @@ func (ct conntrackImpl) addConnection(hashStr string, conn connType) {
 
 func (ct conntrackImpl) updateConnection(conn connType, flowLog config.GenericMap) {
 	for _, agg := range ct.aggregators {
-
-	}
-
-	for _, of := range ct.config.OutputFields {
-		var inputField string
-		// TODO: define aggregators and do the following if only once.
-		if of.Input != "" {
-			inputField = of.Input
-		} else {
-			inputField = of.Name
-		}
-		flowLog[inputField]
-
+		agg.update(conn, flowLog)
 	}
 }
 
@@ -104,7 +155,37 @@ func NewConn(flowLog config.GenericMap) connType {
 
 // TODO: NewDecodeNone create a new decode
 func NewConnectionTrack(config api.ConnTrack) (ConnectionTracker, error) {
-	return &conntrackImpl{config: config}, nil
+	var aggregators []aggregator
+	for _, of := range config.OutputFields {
+		var inputField string
+		if of.Input != "" {
+			inputField = of.Input
+		} else {
+			inputField = of.Name
+		}
+		aggBase := aggregateBase{inputField: inputField, outputField: of.Name}
+		var agg aggregator
+		switch of.Operation {
+		case "sum":
+			agg = aggregateSum{aggBase}
+		case "count":
+			agg = aggregateCount{aggBase}
+		case "min":
+			agg = aggregateMin{aggBase}
+		case "max":
+			agg = aggregateMax{aggBase}
+		default:
+			return nil, fmt.Errorf("unknown operation: %q", of.Operation)
+		}
+		aggregators = append(aggregators, agg)
+	}
+
+	conntrack := &conntrackImpl{
+		config:      config,
+		hasher:      fnv.New32a(),
+		aggregators: aggregators,
+	}
+	return conntrack, nil
 }
 
 /////////////////////////////////////////////////////////////////

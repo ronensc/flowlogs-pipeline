@@ -213,9 +213,3 @@ func TestComputeHash_Bidirectional(t *testing.T) {
 		})
 	}
 }
-
-func Test(t *testing.T) {
-	b := []byte{255, 4, 8}
-	s := hex.EncodeToString(b)
-	fmt.Println(s)
-}
