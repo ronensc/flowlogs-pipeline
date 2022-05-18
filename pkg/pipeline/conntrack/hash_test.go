@@ -38,6 +38,7 @@ func NewFlowLog(srcIP string, srcPort int, dstIP string, dstPort int, protocol i
 	}
 }
 
+// TODO: rename to testHasher
 var hasher = fnv.New32a()
 
 func TestComputeHash_Unidirectional(t *testing.T) {
