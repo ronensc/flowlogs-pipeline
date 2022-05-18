@@ -55,7 +55,6 @@ type aggregateMax struct {
 	aggregateBase
 }
 
-// TODO: Should return a pointer?
 func NewAggregator(of api.OutputField) (aggregator, error) {
 	if of.Name == "" {
 		return nil, fmt.Errorf("empty name %v", of)
@@ -71,23 +70,23 @@ func NewAggregator(of api.OutputField) (aggregator, error) {
 	switch of.Operation {
 	case "sum":
 		aggBase.initVal = 0
-		agg = aggregateSum{aggBase}
+		agg = &aggregateSum{aggBase}
 	case "count":
 		aggBase.initVal = 0
-		agg = aggregateCount{aggBase}
+		agg = &aggregateCount{aggBase}
 	case "min":
 		aggBase.initVal = math.MaxFloat64
-		agg = aggregateMin{aggBase}
+		agg = &aggregateMin{aggBase}
 	case "max":
 		aggBase.initVal = -math.MaxFloat64
-		agg = aggregateMax{aggBase}
+		agg = &aggregateMax{aggBase}
 	default:
 		return nil, fmt.Errorf("unknown operation: %q", of.Operation)
 	}
 	return agg, nil
 }
 
-func (agg aggregateBase) getOutputField(d direction) string {
+func (agg *aggregateBase) getOutputField(d direction) string {
 	outputField := agg.outputField
 	if agg.splitAB {
 		switch d {
@@ -102,16 +101,7 @@ func (agg aggregateBase) getOutputField(d direction) string {
 	return outputField
 }
 
-func (agg aggregateBase) addField(conn connection) {
-	if agg.splitAB {
-		conn.addAgg(agg.getOutputField(dirAB), agg.initVal)
-		conn.addAgg(agg.getOutputField(dirBA), agg.initVal)
-	} else {
-		conn.addAgg(agg.getOutputField(dirNA), agg.initVal)
-	}
-}
-
-func (agg aggregateBase) getInputFieldValue(flowLog config.GenericMap) (float64, error) {
+func (agg *aggregateBase) getInputFieldValue(flowLog config.GenericMap) (float64, error) {
 	rawValue, ok := flowLog[agg.inputField]
 	if !ok {
 		return 0, fmt.Errorf("missing field %v", agg.inputField)
@@ -123,7 +113,16 @@ func (agg aggregateBase) getInputFieldValue(flowLog config.GenericMap) (float64,
 	return floatValue, nil
 }
 
-func (agg aggregateSum) update(conn connection, flowLog config.GenericMap, d direction) {
+func (agg *aggregateBase) addField(conn connection) {
+	if agg.splitAB {
+		conn.addAgg(agg.getOutputField(dirAB), agg.initVal)
+		conn.addAgg(agg.getOutputField(dirBA), agg.initVal)
+	} else {
+		conn.addAgg(agg.getOutputField(dirNA), agg.initVal)
+	}
+}
+
+func (agg *aggregateSum) update(conn connection, flowLog config.GenericMap, d direction) {
 	outputField := agg.getOutputField(d)
 	v, err := agg.getInputFieldValue(flowLog)
 	if err != nil {
@@ -135,14 +134,14 @@ func (agg aggregateSum) update(conn connection, flowLog config.GenericMap, d dir
 	})
 }
 
-func (agg aggregateCount) update(conn connection, flowLog config.GenericMap, d direction) {
+func (agg *aggregateCount) update(conn connection, flowLog config.GenericMap, d direction) {
 	outputField := agg.getOutputField(d)
 	conn.updateAggValue(outputField, func(curr float64) float64 {
 		return curr + 1
 	})
 }
 
-func (agg aggregateMin) update(conn connection, flowLog config.GenericMap, d direction) {
+func (agg *aggregateMin) update(conn connection, flowLog config.GenericMap, d direction) {
 	outputField := agg.getOutputField(d)
 	v, err := agg.getInputFieldValue(flowLog)
 	if err != nil {
@@ -155,7 +154,7 @@ func (agg aggregateMin) update(conn connection, flowLog config.GenericMap, d dir
 	})
 }
 
-func (agg aggregateMax) update(conn connection, flowLog config.GenericMap, d direction) {
+func (agg *aggregateMax) update(conn connection, flowLog config.GenericMap, d direction) {
 	outputField := agg.getOutputField(d)
 	v, err := agg.getInputFieldValue(flowLog)
 	if err != nil {
