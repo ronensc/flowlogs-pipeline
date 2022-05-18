@@ -46,16 +46,16 @@ type connType struct {
 	aggFields map[string]float64
 }
 
-func (c connType) addAgg(fieldName string, initValue float64) {
+func (c *connType) addAgg(fieldName string, initValue float64) {
 	c.aggFields[fieldName] = initValue
 }
 
-func (c connType) getAggValue(fieldName string) (float64, bool) {
+func (c *connType) getAggValue(fieldName string) (float64, bool) {
 	v, ok := c.aggFields[fieldName]
 	return v, ok
 }
 
-func (c connType) updateAggValue(fieldName string, newValueFn func(curr float64) float64) {
+func (c *connType) updateAggValue(fieldName string, newValueFn func(curr float64) float64) {
 	v, ok := c.aggFields[fieldName]
 	if !ok {
 		log.Panicf("tried updating missing field %v", fieldName)
@@ -63,7 +63,7 @@ func (c connType) updateAggValue(fieldName string, newValueFn func(curr float64)
 	c.aggFields[fieldName] = newValueFn(v)
 }
 
-func (c connType) toGenericMap() config.GenericMap {
+func (c *connType) toGenericMap() config.GenericMap {
 	gm := config.GenericMap{}
 	for k, v := range c.aggFields {
 		gm[k] = v
@@ -76,7 +76,7 @@ func (c connType) toGenericMap() config.GenericMap {
 }
 
 // TODO: test whether changing the output hash also changes the internal connection hash
-func (c connType) Hash() totalHashType {
+func (c *connType) Hash() totalHashType {
 	return *c.hash
 }
 
@@ -168,7 +168,7 @@ func (ct *conntrackImpl) Track(flowLogs []config.GenericMap) []config.GenericMap
 	return outputRecords
 }
 
-func (ct conntrackImpl) addConnection(hashStr string, conn connection) {
+func (ct *conntrackImpl) addConnection(hashStr string, conn connection) {
 	ct.hash2conn[hashStr] = conn
 }
 
@@ -180,7 +180,7 @@ const (
 	dirBA
 )
 
-func (ct conntrackImpl) getFlowLogDirection(conn connection, flowLogHash *totalHashType) direction {
+func (ct *conntrackImpl) getFlowLogDirection(conn connection, flowLogHash *totalHashType) direction {
 	d := dirNA
 	if ct.config.KeyDefinition.Hash.FieldGroupARef != "" {
 		if hex.EncodeToString(conn.Hash().hashA) == hex.EncodeToString(flowLogHash.hashA) {
@@ -194,7 +194,7 @@ func (ct conntrackImpl) getFlowLogDirection(conn connection, flowLogHash *totalH
 	return d
 }
 
-func (ct conntrackImpl) updateConnection(conn connection, flowLog config.GenericMap, flowLogHash *totalHashType) {
+func (ct *conntrackImpl) updateConnection(conn connection, flowLog config.GenericMap, flowLogHash *totalHashType) {
 	d := ct.getFlowLogDirection(conn, flowLogHash)
 	for _, agg := range ct.aggregators {
 		agg.update(conn, flowLog, d)
