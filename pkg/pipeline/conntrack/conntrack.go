@@ -42,6 +42,7 @@ type aggregateBase struct {
 	inputField  string
 	outputField string
 	splitAB     bool
+	// TODO: add initValue
 }
 
 type aggregateSum struct {
@@ -58,6 +59,34 @@ type aggregateMin struct {
 
 type aggregateMax struct {
 	aggregateBase
+}
+
+// TODO: Should return a pointer?
+func NewAggregator(of api.OutputField) (aggregator, error) {
+	if of.Name == "" {
+		return nil, fmt.Errorf("empty name %v", of)
+	}
+	var inputField string
+	if of.Input != "" {
+		inputField = of.Input
+	} else {
+		inputField = of.Name
+	}
+	aggBase := aggregateBase{inputField: inputField, outputField: of.Name, splitAB: of.SplitAB}
+	var agg aggregator
+	switch of.Operation {
+	case "sum":
+		agg = aggregateSum{aggBase}
+	case "count":
+		agg = aggregateCount{aggBase}
+	case "min":
+		agg = aggregateMin{aggBase}
+	case "max":
+		agg = aggregateMax{aggBase}
+	default:
+		return nil, fmt.Errorf("unknown operation: %q", of.Operation)
+	}
+	return agg, nil
 }
 
 func (agg aggregateBase) getOutputField(d direction) string {
@@ -274,32 +303,19 @@ func (ct conntrackImpl) updateConnection(conn connection, flowLog config.Generic
 
 func NewConn(flowLog config.GenericMap, hash *totalHashType) connection {
 	// TODO: add keys
-	return connType{hash: hash}
+	return connType{
+		hash:      hash,
+		aggFields: make(map[string]float64),
+	}
 }
 
 // TODO: NewDecodeNone create a new decode
 func NewConnectionTrack(config api.ConnTrack) (ConnectionTracker, error) {
 	var aggregators []aggregator
 	for _, of := range config.OutputFields {
-		var inputField string
-		if of.Input != "" {
-			inputField = of.Input
-		} else {
-			inputField = of.Name
-		}
-		aggBase := aggregateBase{inputField: inputField, outputField: of.Name}
-		var agg aggregator
-		switch of.Operation {
-		case "sum":
-			agg = aggregateSum{aggBase}
-		case "count":
-			agg = aggregateCount{aggBase}
-		case "min":
-			agg = aggregateMin{aggBase}
-		case "max":
-			agg = aggregateMax{aggBase}
-		default:
-			return nil, fmt.Errorf("unknown operation: %q", of.Operation)
+		agg, err := NewAggregator(of)
+		if err != nil {
+			return nil, fmt.Errorf("error creating aggregator: %w", err)
 		}
 		aggregators = append(aggregators, agg)
 	}
