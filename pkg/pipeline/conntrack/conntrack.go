@@ -42,7 +42,7 @@ type aggregateBase struct {
 	inputField  string
 	outputField string
 	splitAB     bool
-	// TODO: add initValue
+	initVal     float64
 }
 
 type aggregateSum struct {
@@ -76,12 +76,16 @@ func NewAggregator(of api.OutputField) (aggregator, error) {
 	var agg aggregator
 	switch of.Operation {
 	case "sum":
+		aggBase.initVal = 0
 		agg = aggregateSum{aggBase}
 	case "count":
+		aggBase.initVal = 0
 		agg = aggregateCount{aggBase}
 	case "min":
+		aggBase.initVal = math.MaxFloat64
 		agg = aggregateMin{aggBase}
 	case "max":
+		aggBase.initVal = -math.MaxFloat64
 		agg = aggregateMax{aggBase}
 	default:
 		return nil, fmt.Errorf("unknown operation: %q", of.Operation)
@@ -106,10 +110,10 @@ func (agg aggregateBase) getOutputField(d direction) string {
 
 func (agg aggregateBase) addField(conn connection) {
 	if agg.splitAB {
-		conn.addAgg(agg.getOutputField(dirAB), 0)
-		conn.addAgg(agg.getOutputField(dirBA), 0)
+		conn.addAgg(agg.getOutputField(dirAB), agg.initVal)
+		conn.addAgg(agg.getOutputField(dirBA), agg.initVal)
 	} else {
-		conn.addAgg(agg.getOutputField(dirNA), 0)
+		conn.addAgg(agg.getOutputField(dirNA), agg.initVal)
 	}
 }
 

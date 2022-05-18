@@ -18,6 +18,7 @@
 package conntrack
 
 import (
+	"math"
 	"testing"
 
 	"github.com/netobserv/flowlogs-pipeline/pkg/api"
@@ -53,32 +54,32 @@ func TestNewAggregator_Valid(t *testing.T) {
 		{
 			name:        "Default SplitAB",
 			outputField: api.OutputField{Name: "MyAgg", Operation: "sum"},
-			expected:    aggregateSum{aggregateBase{"MyAgg", "MyAgg", false}},
+			expected:    aggregateSum{aggregateBase{"MyAgg", "MyAgg", false, 0}},
 		},
 		{
 			name:        "Default input",
 			outputField: api.OutputField{Name: "MyAgg", Operation: "sum", SplitAB: true},
-			expected:    aggregateSum{aggregateBase{"MyAgg", "MyAgg", true}},
+			expected:    aggregateSum{aggregateBase{"MyAgg", "MyAgg", true, 0}},
 		},
 		{
 			name:        "Custom input",
 			outputField: api.OutputField{Name: "MyAgg", Operation: "sum", Input: "MyInput"},
-			expected:    aggregateSum{aggregateBase{"MyInput", "MyAgg", false}},
+			expected:    aggregateSum{aggregateBase{"MyInput", "MyAgg", false, 0}},
 		},
 		{
 			name:        "Operation count",
 			outputField: api.OutputField{Name: "MyAgg", Operation: "count"},
-			expected:    aggregateCount{aggregateBase{"MyAgg", "MyAgg", false}},
+			expected:    aggregateCount{aggregateBase{"MyAgg", "MyAgg", false, 0}},
 		},
 		{
 			name:        "Operation max",
 			outputField: api.OutputField{Name: "MyAgg", Operation: "max"},
-			expected:    aggregateMax{aggregateBase{"MyAgg", "MyAgg", false}},
+			expected:    aggregateMax{aggregateBase{"MyAgg", "MyAgg", false, -math.MaxFloat64}},
 		},
 		{
 			name:        "Operation min",
 			outputField: api.OutputField{Name: "MyAgg", Operation: "min"},
-			expected:    aggregateMin{aggregateBase{"MyAgg", "MyAgg", false}},
+			expected:    aggregateMin{aggregateBase{"MyAgg", "MyAgg", false, math.MaxFloat64}},
 		},
 	}
 
@@ -122,13 +123,13 @@ func TestAddField_and_Update(t *testing.T) {
 			name:      "flowLog 1",
 			flowLog:   NewFlowLog(ipA, portA, ipB, portB, protocolA, 100, 10),
 			direction: dirAB,
-			expected:  map[string]float64{"Bytes_AB": 100, "Bytes_BA": 0, "maxFlowLogBytes": 100, "minFlowLogBytes": 100, "numFlowLogs": 1},
+			expected:  map[string]float64{"Bytes_AB": 100, "Bytes_BA": 0, "Packets": 10, "maxFlowLogBytes": 100, "minFlowLogBytes": 100, "numFlowLogs": 1},
 		},
 		{
 			name:      "flowLog 2",
 			flowLog:   NewFlowLog(ipA, portA, ipB, portB, protocolA, 200, 20),
 			direction: dirBA,
-			expected:  map[string]float64{"Bytes_AB": 100, "Bytes_BA": 200, "maxFlowLogBytes": 200, "minFlowLogBytes": 100, "numFlowLogs": 2},
+			expected:  map[string]float64{"Bytes_AB": 100, "Bytes_BA": 200, "Packets": 30, "maxFlowLogBytes": 200, "minFlowLogBytes": 100, "numFlowLogs": 2},
 		},
 	}
 
@@ -136,7 +137,7 @@ func TestAddField_and_Update(t *testing.T) {
 	for _, agg := range aggs {
 		agg.addField(conn)
 	}
-	expectedInits := map[string]float64{"Bytes_AB": 0, "Bytes_BA": 0, "Packets": 0, "maxFlowLogBytes": 0, "minFlowLogBytes": 0, "numFlowLogs": 0}
+	expectedInits := map[string]float64{"Bytes_AB": 0, "Bytes_BA": 0, "Packets": 0, "maxFlowLogBytes": -math.MaxFloat64, "minFlowLogBytes": math.MaxFloat64, "numFlowLogs": 0}
 	require.Equal(t, expectedInits, conn.(connType).aggFields)
 
 	for _, test := range table {
