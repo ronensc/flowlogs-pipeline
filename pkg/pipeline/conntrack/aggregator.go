@@ -27,8 +27,12 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// aggregator represents a single aggregate field in a connection. The aggregated values are stored in the connection
+// but managed by the aggregator.
 type aggregator interface {
+	// addField adds an aggregate field to the connection
 	addField(conn connection)
+	// update updates the aggregate field in the connection based on the flow log.
 	update(conn connection, flowLog config.GenericMap, d direction)
 }
 
@@ -55,6 +59,7 @@ type aggregateMax struct {
 	aggregateBase
 }
 
+// NewAggregator returns a new aggregator depending on the output field operation
 func NewAggregator(of api.OutputField) (aggregator, error) {
 	if of.Name == "" {
 		return nil, fmt.Errorf("empty name %v", of)
