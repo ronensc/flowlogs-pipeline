@@ -133,19 +133,19 @@ func TestAddField_and_Update(t *testing.T) {
 		},
 	}
 
-	conn := NewConn(table[0].flowLog, nil)
+	conn := NewConnBuilder().Build()
 	for _, agg := range aggs {
 		agg.addField(conn)
 	}
 	expectedInits := map[string]float64{"Bytes_AB": 0, "Bytes_BA": 0, "Packets": 0, "maxFlowLogBytes": -math.MaxFloat64, "minFlowLogBytes": math.MaxFloat64, "numFlowLogs": 0}
-	require.Equal(t, expectedInits, conn.(connType).aggFields)
+	require.Equal(t, expectedInits, conn.(*connType).aggFields)
 
 	for _, test := range table {
 		t.Run(test.name, func(t *testing.T) {
 			for _, agg := range aggs {
 				agg.update(conn, test.flowLog, test.direction)
 			}
-			require.Equal(t, test.expected, conn.(connType).aggFields)
+			require.Equal(t, test.expected, conn.(*connType).aggFields)
 		})
 	}
 }

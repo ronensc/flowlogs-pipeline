@@ -41,8 +41,7 @@ type connection interface {
 }
 
 type connType struct {
-	hash *totalHashType
-	// TODO: add keys
+	hash      *totalHashType
 	keys      config.GenericMap
 	aggFields map[string]float64
 }
@@ -83,6 +82,50 @@ func (c connType) Hash() totalHashType {
 
 //////////////////////////////////////
 
+//////////////////////////////////////
+
+// TODO: move to a file
+
+type connBuilder struct {
+	conn *connType
+}
+
+func NewConnBuilder() *connBuilder {
+	return &connBuilder{
+		conn: &connType{
+			aggFields: make(map[string]float64),
+		},
+	}
+}
+
+func (cb *connBuilder) Hash(h *totalHashType) *connBuilder {
+	cb.conn.hash = h
+	return cb
+}
+
+func (cb *connBuilder) KeysFrom(flowLog config.GenericMap, kd api.KeyDefinition) *connBuilder {
+	for _, fg := range kd.FieldGroups {
+		for _, f := range fg.Fields {
+			// TODO: should we access conn.key directly?
+			cb.conn.keys[f] = flowLog[f]
+		}
+	}
+	return cb
+}
+
+func (cb *connBuilder) Aggregators(aggs []aggregator) *connBuilder {
+	for _, agg := range aggs {
+		agg.addField(cb.conn)
+	}
+	return cb
+}
+
+func (cb *connBuilder) Build() connection {
+	return cb.conn
+}
+
+//////////////////////////////////////
+
 type ConnectionTracker interface {
 	Track(flowLogs []config.GenericMap) []config.GenericMap
 }
@@ -102,29 +145,30 @@ func (ct *conntrackImpl) Track(flowLogs []config.GenericMap) []config.GenericMap
 	var outputRecords []config.GenericMap
 	for _, fl := range flowLogs {
 		// TODO: think of returning a string rather than []byte
-		hash, err := ComputeHash(fl, ct.config.KeyDefinition, ct.hasher)
+		computedHash, err := ComputeHash(fl, ct.config.KeyDefinition, ct.hasher)
 		if err != nil {
 			// TODO: handle error
 			continue
 		}
-		hashStr := hex.EncodeToString(hash.hashTotal)
+		hashStr := hex.EncodeToString(computedHash.hashTotal)
 		conn, exists := ct.hash2conn[hashStr]
 		if !exists {
-			conn = NewConn(fl, hash)
+			builder := NewConnBuilder()
+			conn = builder.
+				Hash(computedHash).
+				KeysFrom(fl, ct.config.KeyDefinition).
+				Aggregators(ct.aggregators).
+				Build()
 			ct.addConnection(hashStr, conn)
 			outputRecords = append(outputRecords, conn.toGenericMap())
 		} else {
-			ct.updateConnection(conn, fl, hash)
+			ct.updateConnection(conn, fl, computedHash)
 		}
 	}
 	return outputRecords
 }
 
 func (ct conntrackImpl) addConnection(hashStr string, conn connection) {
-	// TODO:
-	for _, agg := range ct.aggregators {
-		agg.addField(conn)
-	}
 	ct.hash2conn[hashStr] = conn
 }
 
@@ -157,14 +201,6 @@ func (ct conntrackImpl) updateConnection(conn connection, flowLog config.Generic
 	}
 }
 
-func NewConn(flowLog config.GenericMap, hash *totalHashType) connection {
-	// TODO: add keys
-	return connType{
-		hash:      hash,
-		aggFields: make(map[string]float64),
-	}
-}
-
 // TODO: NewDecodeNone create a new decode
 func NewConnectionTrack(config api.ConnTrack) (ConnectionTracker, error) {
 	var aggregators []aggregator
@@ -180,6 +216,7 @@ func NewConnectionTrack(config api.ConnTrack) (ConnectionTracker, error) {
 		config:      config,
 		hasher:      fnv.New32a(),
 		aggregators: aggregators,
+		hash2conn:   make(map[string]connection),
 	}
 	return conntrack, nil
 }
