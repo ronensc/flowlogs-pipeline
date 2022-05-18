@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/netobserv/flowlogs-pipeline/pkg/api"
+	"github.com/netobserv/flowlogs-pipeline/pkg/config"
 	"github.com/stretchr/testify/require"
 )
 
@@ -90,33 +91,60 @@ func TestNewAggregator_Valid(t *testing.T) {
 	}
 }
 
-// TODO: rename
-func TestTEMP(t *testing.T) {
-	var agg aggregator
-	agg, _ = NewAggregator(api.OutputField{
-		Name:      "MyField",
-		Operation: "sum",
-		SplitAB:   true,
-		Input:     "Input",
-	})
-	// Test NewAggregator
-	// Test default Input
-	// Test splitAB
-
-	kd := api.KeyDefinition{}
-	fl := NewFlowLog("a", 1, "b", 2, 3, 4, 5)
-	hash, err := ComputeHash(fl, kd, hasher)
-	if err != nil {
-
+func TestAddField_and_Update(t *testing.T) {
+	ofs := []api.OutputField{
+		{Name: "Bytes", Operation: "sum", SplitAB: true},
+		{Name: "Packets", Operation: "sum", SplitAB: false},
+		{Name: "numFlowLogs", Operation: "count"},
+		{Name: "minFlowLogBytes", Operation: "min", Input: "Bytes"},
+		{Name: "maxFlowLogBytes", Operation: "max", Input: "Bytes"},
 	}
-	conn := NewConn(fl, hash)
+	var aggs []aggregator
+	for _, of := range ofs {
+		agg, err := NewAggregator(of)
+		require.NoError(t, err)
+		aggs = append(aggs, agg)
+	}
 
-	// Test AddField
-	agg.addField(conn)
-	x, ok := conn.(connType).aggFields["MyField"]
-	require.True(t, ok)
-	require.Equal(t, x, 0)
+	ipA := "10.0.0.1"
+	ipB := "10.0.0.2"
+	portA := 1
+	portB := 9002
+	protocolA := 6
 
-	// Test update on each agg type!
-	agg.update(conn, fl, dirNA)
+	table := []struct {
+		name      string
+		flowLog   config.GenericMap
+		direction direction
+		expected  map[string]float64
+	}{
+		{
+			name:      "flowLog 1",
+			flowLog:   NewFlowLog(ipA, portA, ipB, portB, protocolA, 100, 10),
+			direction: dirAB,
+			expected:  map[string]float64{"Bytes_AB": 100, "Bytes_BA": 0, "maxFlowLogBytes": 100, "minFlowLogBytes": 100, "numFlowLogs": 1},
+		},
+		{
+			name:      "flowLog 2",
+			flowLog:   NewFlowLog(ipA, portA, ipB, portB, protocolA, 200, 20),
+			direction: dirBA,
+			expected:  map[string]float64{"Bytes_AB": 100, "Bytes_BA": 200, "maxFlowLogBytes": 200, "minFlowLogBytes": 100, "numFlowLogs": 2},
+		},
+	}
+
+	conn := NewConn(table[0].flowLog, nil)
+	for _, agg := range aggs {
+		agg.addField(conn)
+	}
+	expectedInits := map[string]float64{"Bytes_AB": 0, "Bytes_BA": 0, "Packets": 0, "maxFlowLogBytes": 0, "minFlowLogBytes": 0, "numFlowLogs": 0}
+	require.Equal(t, expectedInits, conn.(connType).aggFields)
+
+	for _, test := range table {
+		t.Run(test.name, func(t *testing.T) {
+			for _, agg := range aggs {
+				agg.update(conn, test.flowLog, test.direction)
+			}
+			require.Equal(t, test.expected, conn.(connType).aggFields)
+		})
+	}
 }
