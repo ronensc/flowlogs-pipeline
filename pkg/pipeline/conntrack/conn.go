@@ -92,7 +92,7 @@ func (cb *connBuilder) Hash(h *totalHashType) *connBuilder {
 func (cb *connBuilder) KeysFrom(flowLog config.GenericMap, kd api.KeyDefinition) *connBuilder {
 	for _, fg := range kd.FieldGroups {
 		for _, f := range fg.Fields {
-			// TODO: should we access conn.key directly?
+			// TODO: is it correct from OOP PoV to access conn.keys directly?
 			cb.conn.keys[f] = flowLog[f]
 		}
 	}
