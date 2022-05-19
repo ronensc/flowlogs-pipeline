@@ -49,7 +49,7 @@ func (ct *conntrackImpl) Track(flowLogs []config.GenericMap) []config.GenericMap
 		// TODO: think of returning a string rather than []byte
 		computedHash, err := ComputeHash(fl, ct.config.KeyDefinition, ct.hasher)
 		if err != nil {
-			// TODO: handle error
+			log.Warningf("skipping flow log: %v", err)
 			continue
 		}
 		hashStr := hex.EncodeToString(computedHash.hashTotal)
