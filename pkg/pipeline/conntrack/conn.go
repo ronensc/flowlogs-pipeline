@@ -33,7 +33,7 @@ type connection interface {
 }
 
 type connType struct {
-	hash      *totalHashType
+	hash      totalHashType
 	keys      config.GenericMap
 	aggFields map[string]float64
 }
@@ -67,12 +67,11 @@ func (c *connType) toGenericMap() config.GenericMap {
 	return gm
 }
 
-// TODO: test whether changing the output hash also changes the internal connection hash
 func (c *connType) getHash() totalHashType {
-	return *c.hash
+	return copyTotalHash(c.hash)
 }
 
-// TODO: Should the connBuilder get a file of its own?
+// TODO: Should connBuilder get a file of its own?
 type connBuilder struct {
 	conn *connType
 }
@@ -86,7 +85,7 @@ func NewConnBuilder() *connBuilder {
 }
 
 func (cb *connBuilder) Hash(h *totalHashType) *connBuilder {
-	cb.conn.hash = h
+	cb.conn.hash = copyTotalHash(*h)
 	return cb
 }
 
