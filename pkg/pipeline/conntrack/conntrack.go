@@ -62,6 +62,7 @@ func (ct *conntrackImpl) Track(flowLogs []config.GenericMap) []config.GenericMap
 				Aggregators(ct.aggregators).
 				Build()
 			ct.addConnection(hashStr, conn)
+			ct.updateConnection(conn, fl, computedHash)
 			outputRecords = append(outputRecords, conn.toGenericMap())
 		} else {
 			ct.updateConnection(conn, fl, computedHash)
@@ -103,7 +104,7 @@ func (ct *conntrackImpl) updateConnection(conn connection, flowLog config.Generi
 	}
 }
 
-// TODO: NewDecodeNone create a new decode
+// NewConnectionTrack creates a new connection track instance
 func NewConnectionTrack(config api.ConnTrack) (ConnectionTracker, error) {
 	var aggregators []aggregator
 	for _, of := range config.OutputFields {

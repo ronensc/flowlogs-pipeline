@@ -80,6 +80,7 @@ func NewConnBuilder() *connBuilder {
 	return &connBuilder{
 		conn: &connType{
 			aggFields: make(map[string]float64),
+			keys:      config.GenericMap{},
 		},
 	}
 }

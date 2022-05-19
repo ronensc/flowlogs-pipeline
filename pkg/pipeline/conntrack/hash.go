@@ -41,6 +41,9 @@ func copyTotalHash(h totalHashType) totalHashType {
 	newHashA := make([]byte, len(h.hashA))
 	newHashB := make([]byte, len(h.hashB))
 	newHashTotal := make([]byte, len(h.hashTotal))
+	copy(newHashA, h.hashA)
+	copy(newHashB, h.hashB)
+	copy(newHashTotal, h.hashTotal)
 	return totalHashType{
 		hashA:     newHashA,
 		hashB:     newHashB,
