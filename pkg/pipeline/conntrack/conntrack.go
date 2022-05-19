@@ -36,8 +36,9 @@ type conntrackImpl struct {
 	config api.ConnTrack
 	hasher hash.Hash
 	// TODO: should the key of the map be a custom hashStrType instead of string?
-	hash2conn      map[string]connection
-	aggregators    []aggregator
+	hash2conn   map[string]connection
+	aggregators []aggregator
+	// TODO: rename to outputFlowLogs
 	outputOriginal bool
 }
 

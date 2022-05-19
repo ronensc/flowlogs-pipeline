@@ -59,6 +59,8 @@ type aggregateMax struct {
 	aggregateBase
 }
 
+// TODO: think of adding a more complex operation such as Average Packet Size which involves 2 input fields: Bytes/Packets
+
 // NewAggregator returns a new aggregator depending on the output field operation
 func NewAggregator(of api.OutputField) (aggregator, error) {
 	if of.Name == "" {
