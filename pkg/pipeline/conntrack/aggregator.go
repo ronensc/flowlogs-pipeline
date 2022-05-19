@@ -131,7 +131,7 @@ func (agg *aggregateSum) update(conn connection, flowLog config.GenericMap, d di
 	outputField := agg.getOutputField(d)
 	v, err := agg.getInputFieldValue(flowLog)
 	if err != nil {
-		log.Errorf("error updating connection %v: %v", string(conn.Hash().hashTotal), err)
+		log.Errorf("error updating connection %v: %v", string(conn.getHash().hashTotal), err)
 		return
 	}
 	conn.updateAggValue(outputField, func(curr float64) float64 {
@@ -150,7 +150,7 @@ func (agg *aggregateMin) update(conn connection, flowLog config.GenericMap, d di
 	outputField := agg.getOutputField(d)
 	v, err := agg.getInputFieldValue(flowLog)
 	if err != nil {
-		log.Errorf("error updating connection %v: %v", string(conn.Hash().hashTotal), err)
+		log.Errorf("error updating connection %v: %v", string(conn.getHash().hashTotal), err)
 		return
 	}
 
@@ -163,7 +163,7 @@ func (agg *aggregateMax) update(conn connection, flowLog config.GenericMap, d di
 	outputField := agg.getOutputField(d)
 	v, err := agg.getInputFieldValue(flowLog)
 	if err != nil {
-		log.Errorf("error updating connection %v: %v", string(conn.Hash().hashTotal), err)
+		log.Errorf("error updating connection %v: %v", string(conn.getHash().hashTotal), err)
 		return
 	}
 

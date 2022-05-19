@@ -85,7 +85,7 @@ const (
 func (ct *conntrackImpl) getFlowLogDirection(conn connection, flowLogHash *totalHashType) direction {
 	d := dirNA
 	if ct.config.KeyDefinition.Hash.FieldGroupARef != "" {
-		if hex.EncodeToString(conn.Hash().hashA) == hex.EncodeToString(flowLogHash.hashA) {
+		if hex.EncodeToString(conn.getHash().hashA) == hex.EncodeToString(flowLogHash.hashA) {
 			// A -> B
 			d = dirAB
 		} else {

@@ -29,7 +29,7 @@ type connection interface {
 	getAggValue(fieldName string) (float64, bool)
 	updateAggValue(fieldName string, newValueFn func(curr float64) float64)
 	toGenericMap() config.GenericMap
-	Hash() totalHashType
+	getHash() totalHashType
 }
 
 type connType struct {
@@ -68,7 +68,7 @@ func (c *connType) toGenericMap() config.GenericMap {
 }
 
 // TODO: test whether changing the output hash also changes the internal connection hash
-func (c *connType) Hash() totalHashType {
+func (c *connType) getHash() totalHashType {
 	return *c.hash
 }
 
