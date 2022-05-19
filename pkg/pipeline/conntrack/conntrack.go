@@ -36,8 +36,9 @@ type conntrackImpl struct {
 	config api.ConnTrack
 	hasher hash.Hash
 	// TODO: should the key of the map be a custom hashStrType instead of string?
-	hash2conn   map[string]connection
-	aggregators []aggregator
+	hash2conn      map[string]connection
+	aggregators    []aggregator
+	outputOriginal bool
 }
 
 func (ct *conntrackImpl) Track(flowLogs []config.GenericMap) []config.GenericMap {
@@ -66,6 +67,10 @@ func (ct *conntrackImpl) Track(flowLogs []config.GenericMap) []config.GenericMap
 			outputRecords = append(outputRecords, conn.toGenericMap())
 		} else {
 			ct.updateConnection(conn, fl, computedHash)
+		}
+
+		if ct.outputOriginal {
+			outputRecords = append(outputRecords, fl)
 		}
 	}
 	return outputRecords
@@ -114,12 +119,22 @@ func NewConnectionTrack(config api.ConnTrack) (ConnectionTracker, error) {
 		}
 		aggregators = append(aggregators, agg)
 	}
+	outputOriginal := false
+	for _, option := range config.OutputRecordTypes {
+		switch option {
+		case "outputOriginal":
+			outputOriginal = true
+		default:
+			return nil, fmt.Errorf("unknown OutputRecordTypes: %v", option)
+		}
+	}
 
 	conntrack := &conntrackImpl{
-		config:      config,
-		hasher:      fnv.New32a(),
-		aggregators: aggregators,
-		hash2conn:   make(map[string]connection),
+		config:         config,
+		hasher:         fnv.New32a(),
+		aggregators:    aggregators,
+		hash2conn:      make(map[string]connection),
+		outputOriginal: outputOriginal,
 	}
 	return conntrack, nil
 }
