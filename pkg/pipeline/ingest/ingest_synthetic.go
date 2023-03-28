@@ -70,35 +70,16 @@ func (ingestS *IngestSynthetic) Ingest(out chan<- config.GenericMap) {
 			log.Debugf("exiting IngestSynthetic because of signal")
 			return
 		case <-ticker.C:
-			// flowsLeft designates the number out of BatchMaxLen that must still be sent in this batch
-			// next designates the next flow log entry to be sent
-			// remainder designates how many flow logs remain in the flowLogs array that can be sent on the next sub-batch.
-			flowsLeft := ingestS.params.BatchMaxLen
-			log.Debugf("flowsLeft = %d", flowsLeft)
-			subBatchLen := flowsLeft
-			for flowsLeft > 0 {
-				remainder := nLogs - next
-				if subBatchLen > remainder {
-					subBatchLen = remainder
-				}
-				log.Debugf("flowsLeft = %d, remainder = %d, subBatchLen = %d", flowsLeft, remainder, subBatchLen)
-				subBatch := flowLogs[next : next+subBatchLen]
-				ingestS.sendBatch(subBatch, out)
-				ingestS.metricsProcessed.Add(float64(subBatchLen))
-				flowsLeft -= subBatchLen
-				next += subBatchLen
-				if subBatchLen == remainder {
+			log.Debugf("sending a batch of %d flow logs from index %d", ingestS.params.BatchMaxLen, next)
+			for i := 0; i < ingestS.params.BatchMaxLen; i++ {
+				out <- flowLogs[next]
+				ingestS.metricsProcessed.Inc()
+				next++
+				if next >= nLogs {
 					next = 0
-					subBatchLen = flowsLeft
 				}
 			}
 		}
-	}
-}
-
-func (ingestS *IngestSynthetic) sendBatch(flows []config.GenericMap, out chan<- config.GenericMap) {
-	for _, flow := range flows {
-		out <- flow
 	}
 }
 
