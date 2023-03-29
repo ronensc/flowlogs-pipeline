@@ -225,6 +225,8 @@ Following is the supported API format for specifying connection tracking:
                      count: count
                      min: min
                      max: max
+                     copyFirst: copyFirst
+                     copyLast: copyLast
                  splitAB: When true, 2 output fields will be created. One for A->B and one for B->A flows.
                  input: The input field to base the operation on. When omitted, 'name' is used
          scheduling: list of timeouts and intervals to apply per selector

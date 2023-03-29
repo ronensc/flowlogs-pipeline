@@ -77,10 +77,12 @@ type OutputField struct {
 }
 
 type ConnTrackOperationEnum struct {
-	Sum   string `yaml:"sum" json:"sum" doc:"sum"`
-	Count string `yaml:"count" json:"count" doc:"count"`
-	Min   string `yaml:"min" json:"min" doc:"min"`
-	Max   string `yaml:"max" json:"max" doc:"max"`
+	Sum       string `yaml:"sum" json:"sum" doc:"sum"`
+	Count     string `yaml:"count" json:"count" doc:"count"`
+	Min       string `yaml:"min" json:"min" doc:"min"`
+	Max       string `yaml:"max" json:"max" doc:"max"`
+	CopyFirst string `yaml:"copyFirst" json:"copyFirst" doc:"copyFirst"`
+	CopyLast  string `yaml:"copyLast" json:"copyLast" doc:"copyLast"`
 }
 
 type ConnTrackSchedulingGroup struct {
@@ -91,6 +93,10 @@ type ConnTrackSchedulingGroup struct {
 
 func ConnTrackOperationName(operation string) string {
 	return GetEnumName(ConnTrackOperationEnum{}, operation)
+}
+
+func IsConnTrackOperationCopy(name string) bool {
+	return name == ConnTrackOperationName("CopyFirst") || name == ConnTrackOperationName("CopyLast")
 }
 
 type ConnTrackTCPFlags struct {
@@ -113,7 +119,7 @@ func (ct *ConnTrack) Validate() error {
 			return conntrackInvalidError{splitABWithNoBidi: true,
 				msg: fmt.Errorf("output field %q has splitAB=true although bidirection is not enabled (fieldGroupARef is empty)", of.Name)}
 		}
-		if !isOperationValid(of.Operation) {
+		if !isOperationValid(of.Operation, of.SplitAB) {
 			return conntrackInvalidError{unknownOperation: true,
 				msg: fmt.Errorf("unknown operation %q in output field %q", of.Operation, of.Name)}
 		}
@@ -250,13 +256,15 @@ func addToSet(set map[string]struct{}, item string) bool {
 	return true
 }
 
-func isOperationValid(value string) bool {
+func isOperationValid(value string, splitAB bool) bool {
 	valid := true
 	switch value {
 	case ConnTrackOperationName("Sum"):
 	case ConnTrackOperationName("Count"):
 	case ConnTrackOperationName("Min"):
 	case ConnTrackOperationName("Max"):
+	case ConnTrackOperationName("CopyFirst"), ConnTrackOperationName("CopyLast"):
+		valid = !splitAB
 	default:
 		valid = false
 	}

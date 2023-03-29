@@ -32,6 +32,8 @@ type connection interface {
 	addAgg(fieldName string, initValue float64)
 	getAggValue(fieldName string) (float64, bool)
 	updateAggValue(fieldName string, newValueFn func(curr float64) float64)
+	addCp(fieldName string)
+	updateCpValue(fieldName string, newValue interface{})
 	setExpiryTime(t time.Time)
 	getExpiryTime() time.Time
 	setNextHeartbeatTime(t time.Time)
@@ -49,6 +51,7 @@ type connType struct {
 	hash              totalHashType
 	keys              config.GenericMap
 	aggFields         map[string]float64
+	cpFields          map[string]interface{}
 	expiryTime        time.Time
 	nextHeartbeatTime time.Time
 	isReported        bool
@@ -69,6 +72,18 @@ func (c *connType) updateAggValue(fieldName string, newValueFn func(curr float64
 		log.Panicf("tried updating missing field %v", fieldName)
 	}
 	c.aggFields[fieldName] = newValueFn(v)
+}
+
+func (c *connType) addCp(fieldName string) {
+	c.cpFields[fieldName] = nil
+}
+
+func (c *connType) updateCpValue(fieldName string, newValue interface{}) {
+	_, ok := c.cpFields[fieldName]
+	if !ok {
+		log.Panicf("tried updating missing field %v", fieldName)
+	}
+	c.cpFields[fieldName] = newValue
 }
 
 func (c *connType) setExpiryTime(t time.Time) {
@@ -92,7 +107,12 @@ func (c *connType) toGenericMap() config.GenericMap {
 	for k, v := range c.aggFields {
 		gm[k] = v
 	}
-	// In case of a conflict between the keys and the aggFields, the keys should prevail.
+
+	for k, v := range c.cpFields {
+		gm[k] = v
+	}
+
+	// In case of a conflict between the keys and the aggFields / cpFields, the keys should prevail.
 	for k, v := range c.keys {
 		gm[k] = v
 	}
@@ -172,6 +192,7 @@ func NewConnBuilder(metrics *metricsType) *connBuilder {
 	return &connBuilder{
 		conn: &connType{
 			aggFields:  make(map[string]float64),
+			cpFields:   make(map[string]interface{}),
 			keys:       config.GenericMap{},
 			isReported: false,
 		},
@@ -210,6 +231,13 @@ func (cb *connBuilder) KeysFrom(flowLog config.GenericMap, kd api.KeyDefinition,
 func (cb *connBuilder) Aggregators(aggs []aggregator) *connBuilder {
 	for _, agg := range aggs {
 		agg.addField(cb.conn)
+	}
+	return cb
+}
+
+func (cb *connBuilder) Copiers(cps []copier) *connBuilder {
+	for _, cp := range cps {
+		cp.addField(cb.conn)
 	}
 	return cb
 }

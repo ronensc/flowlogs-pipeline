@@ -105,15 +105,16 @@ func TestTrack(t *testing.T) {
 	portA := 9001
 	portB := 9002
 	protocol := 6
+	flowDir := 0
 	hashId := "705baa5149302fa1"
 	hashIdAB := "705baa5149302fa1"
 	hashIdBA := "cc40f571f40f3111"
 
-	flAB1 := newMockFlowLog(ipA, portA, ipB, portB, protocol, 111, 11, false)
-	flAB1Duplicated := newMockFlowLog(ipA, portA, ipB, portB, protocol, 111, 11, true)
-	flAB2 := newMockFlowLog(ipA, portA, ipB, portB, protocol, 222, 22, false)
-	flBA3 := newMockFlowLog(ipB, portB, ipA, portA, protocol, 333, 33, false)
-	flBA4 := newMockFlowLog(ipB, portB, ipA, portA, protocol, 444, 44, false)
+	flAB1 := newMockFlowLog(ipA, portA, ipB, portB, protocol, flowDir, 111, 11, false)
+	flAB1Duplicated := newMockFlowLog(ipA, portA, ipB, portB, protocol, flowDir, 111, 11, true)
+	flAB2 := newMockFlowLog(ipA, portA, ipB, portB, protocol, flowDir, 222, 22, false)
+	flBA3 := newMockFlowLog(ipB, portB, ipA, portA, protocol, flowDir, 333, 33, false)
+	flBA4 := newMockFlowLog(ipB, portB, ipA, portA, protocol, flowDir, 444, 44, false)
 	table := []struct {
 		name          string
 		conf          *config.StageParam
@@ -196,12 +197,13 @@ func TestEndConn_Bidirectional(t *testing.T) {
 	portA := 9001
 	portB := 9002
 	protocol := 6
+	flowDir := 0
 	hashId := "705baa5149302fa1"
 
-	flAB1 := newMockFlowLog(ipA, portA, ipB, portB, protocol, 111, 11, false)
-	flAB2 := newMockFlowLog(ipA, portA, ipB, portB, protocol, 222, 22, false)
-	flBA3 := newMockFlowLog(ipB, portB, ipA, portA, protocol, 333, 33, false)
-	flBA4 := newMockFlowLog(ipB, portB, ipA, portA, protocol, 444, 44, false)
+	flAB1 := newMockFlowLog(ipA, portA, ipB, portB, protocol, flowDir, 111, 11, false)
+	flAB2 := newMockFlowLog(ipA, portA, ipB, portB, protocol, flowDir, 222, 22, false)
+	flBA3 := newMockFlowLog(ipB, portB, ipA, portA, protocol, flowDir, 333, 33, false)
+	flBA4 := newMockFlowLog(ipB, portB, ipA, portA, protocol, flowDir, 444, 44, false)
 	startTime := clk.Now()
 	table := []struct {
 		name          string
@@ -282,13 +284,14 @@ func TestEndConn_Unidirectional(t *testing.T) {
 	portA := 9001
 	portB := 9002
 	protocol := 6
+	flowDir := 0
 	hashIdAB := "705baa5149302fa1"
 	hashIdBA := "cc40f571f40f3111"
 
-	flAB1 := newMockFlowLog(ipA, portA, ipB, portB, protocol, 111, 11, false)
-	flAB2 := newMockFlowLog(ipA, portA, ipB, portB, protocol, 222, 22, false)
-	flBA3 := newMockFlowLog(ipB, portB, ipA, portA, protocol, 333, 33, false)
-	flBA4 := newMockFlowLog(ipB, portB, ipA, portA, protocol, 444, 44, false)
+	flAB1 := newMockFlowLog(ipA, portA, ipB, portB, protocol, flowDir, 111, 11, false)
+	flAB2 := newMockFlowLog(ipA, portA, ipB, portB, protocol, flowDir, 222, 22, false)
+	flBA3 := newMockFlowLog(ipB, portB, ipA, portA, protocol, flowDir, 333, 33, false)
+	flBA4 := newMockFlowLog(ipB, portB, ipA, portA, protocol, flowDir, 444, 44, false)
 	startTime := clk.Now()
 	table := []struct {
 		name          string
@@ -384,12 +387,13 @@ func TestHeartbeat_Unidirectional(t *testing.T) {
 	portA := 9001
 	portB := 9002
 	protocol := 6
+	flowDir := 0
 	hashIdAB := "705baa5149302fa1"
 	hashIdBA := "cc40f571f40f3111"
 
-	flAB1 := newMockFlowLog(ipA, portA, ipB, portB, protocol, 111, 11, false)
-	flAB2 := newMockFlowLog(ipA, portA, ipB, portB, protocol, 222, 22, false)
-	flBA3 := newMockFlowLog(ipB, portB, ipA, portA, protocol, 333, 33, false)
+	flAB1 := newMockFlowLog(ipA, portA, ipB, portB, protocol, flowDir, 111, 11, false)
+	flAB2 := newMockFlowLog(ipA, portA, ipB, portB, protocol, flowDir, 222, 22, false)
+	flBA3 := newMockFlowLog(ipB, portB, ipA, portA, protocol, flowDir, 333, 33, false)
 	startTime := clk.Now()
 	table := []struct {
 		name          string
@@ -532,8 +536,9 @@ func TestIsFirst_LongConnection(t *testing.T) {
 	portA := 9001
 	portB := 9002
 	protocol := 6
+	flowDir := 0
 	hashIdAB := "705baa5149302fa1"
-	flAB1 := newMockFlowLog(ipA, portA, ipB, portB, protocol, 111, 11, false)
+	flAB1 := newMockFlowLog(ipA, portA, ipB, portB, protocol, flowDir, 111, 11, false)
 	startTime := clk.Now()
 	table := []struct {
 		name          string
@@ -621,8 +626,9 @@ func TestIsFirst_ShortConnection(t *testing.T) {
 	portA := 9001
 	portB := 9002
 	protocol := 6
+	flowDir := 0
 	hashIdAB := "705baa5149302fa1"
-	flAB1 := newMockFlowLog(ipA, portA, ipB, portB, protocol, 111, 11, false)
+	flAB1 := newMockFlowLog(ipA, portA, ipB, portB, protocol, flowDir, 111, 11, false)
 	startTime := clk.Now()
 	table := []struct {
 		name          string
@@ -755,12 +761,13 @@ func TestScheduling(t *testing.T) {
 	portB := 9002
 	protocolTCP := 6
 	protocolICMP := 1
+	flowDir := 0
 	hashIdTCP := "705baa5149302fa1"
 	hashIdICMP := "3dccf73fe57ba06f"
-	flTCP1 := newMockFlowLog(ipA, portA, ipB, portB, protocolTCP, 111, 11, false)
-	flTCP2 := newMockFlowLog(ipB, portB, ipA, portA, protocolTCP, 222, 22, false)
-	flICMP1 := newMockFlowLog(ipA, portA, ipB, portB, protocolICMP, 333, 33, false)
-	flICMP2 := newMockFlowLog(ipB, portB, ipA, portA, protocolICMP, 444, 44, false)
+	flTCP1 := newMockFlowLog(ipA, portA, ipB, portB, protocolTCP, flowDir, 111, 11, false)
+	flTCP2 := newMockFlowLog(ipB, portB, ipA, portA, protocolTCP, flowDir, 222, 22, false)
+	flICMP1 := newMockFlowLog(ipA, portA, ipB, portB, protocolICMP, flowDir, 333, 33, false)
+	flICMP2 := newMockFlowLog(ipB, portB, ipA, portA, protocolICMP, flowDir, 444, 44, false)
 	startTime := clk.Now()
 	table := []struct {
 		name          string
@@ -1006,9 +1013,10 @@ func TestDetectEndConnection(t *testing.T) {
 	portA := 9001
 	portB := 9002
 	protocolTCP := 6
+	flowDir := 0
 	hashIdTCP := "705baa5149302fa1"
-	flTCP1 := newMockFlowLog(ipA, portA, ipB, portB, protocolTCP, 111, 11, false)
-	flTCP2 := newMockFlowLog(ipB, portB, ipA, portA, protocolTCP, 222, 22, false)
+	flTCP1 := newMockFlowLog(ipA, portA, ipB, portB, protocolTCP, flowDir, 111, 11, false)
+	flTCP2 := newMockFlowLog(ipB, portB, ipA, portA, protocolTCP, flowDir, 222, 22, false)
 	flTCP2[tcpFlagsFieldName] = FIN_ACK_FLAG
 
 	startTime := clk.Now()
@@ -1077,8 +1085,9 @@ func TestSwapAB(t *testing.T) {
 	portA := 9001
 	portB := 9002
 	protocolTCP := 6
+	flowDir := 0
 	hashIdTCP := "705baa5149302fa1"
-	flTCP1 := newMockFlowLog(ipB, portB, ipA, portA, protocolTCP, 111, 11, false)
+	flTCP1 := newMockFlowLog(ipB, portB, ipA, portA, protocolTCP, flowDir, 111, 11, false)
 	flTCP1[tcpFlagsFieldName] = SYN_ACK_FLAG
 
 	startTime := clk.Now()

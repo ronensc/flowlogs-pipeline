@@ -119,6 +119,7 @@ func TestAddField_and_Update(t *testing.T) {
 	portA := 1
 	portB := 9002
 	protocolA := 6
+	flowDir := 0
 
 	table := []struct {
 		name      string
@@ -128,13 +129,13 @@ func TestAddField_and_Update(t *testing.T) {
 	}{
 		{
 			name:      "flowLog 1",
-			flowLog:   newMockFlowLog(ipA, portA, ipB, portB, protocolA, 100, 10, false),
+			flowLog:   newMockFlowLog(ipA, portA, ipB, portB, protocolA, flowDir, 100, 10, false),
 			direction: dirAB,
 			expected:  map[string]float64{"Bytes_AB": 100, "Bytes_BA": 0, "Packets": 10, "maxFlowLogBytes": 100, "minFlowLogBytes": 100, "numFlowLogs": 1},
 		},
 		{
 			name:      "flowLog 2",
-			flowLog:   newMockFlowLog(ipA, portA, ipB, portB, protocolA, 200, 20, false),
+			flowLog:   newMockFlowLog(ipA, portA, ipB, portB, protocolA, flowDir, 200, 20, false),
 			direction: dirBA,
 			expected:  map[string]float64{"Bytes_AB": 100, "Bytes_BA": 200, "Packets": 30, "maxFlowLogBytes": 200, "minFlowLogBytes": 100, "numFlowLogs": 2},
 		},
