@@ -29,11 +29,9 @@ import (
 )
 
 type connection interface {
-	addAgg(fieldName string, initValue float64)
-	getAggValue(fieldName string) (float64, bool)
-	updateAggValue(fieldName string, newValueFn func(curr float64) float64)
-	addCp(fieldName string)
-	updateCpValue(fieldName string, newValue interface{})
+	addAgg(fieldName string, initValue interface{})
+	updateAggValue(fieldName string, newValue interface{})
+	updateAggFnValue(fieldName string, newValueFn func(curr float64) float64)
 	setExpiryTime(t time.Time)
 	getExpiryTime() time.Time
 	setNextHeartbeatTime(t time.Time)
@@ -50,40 +48,37 @@ type connection interface {
 type connType struct {
 	hash              totalHashType
 	keys              config.GenericMap
-	aggFields         map[string]float64
-	cpFields          map[string]interface{}
+	aggFields         map[string]interface{}
 	expiryTime        time.Time
 	nextHeartbeatTime time.Time
 	isReported        bool
 }
 
-func (c *connType) addAgg(fieldName string, initValue float64) {
+func (c *connType) addAgg(fieldName string, initValue interface{}) {
 	c.aggFields[fieldName] = initValue
 }
 
-func (c *connType) getAggValue(fieldName string) (float64, bool) {
-	v, ok := c.aggFields[fieldName]
-	return v, ok
+func (c *connType) updateAggValue(fieldName string, newValue interface{}) {
+	_, ok := c.aggFields[fieldName]
+	if !ok {
+		log.Panicf("tried updating missing field %v", fieldName)
+	}
+	c.aggFields[fieldName] = newValue
 }
 
-func (c *connType) updateAggValue(fieldName string, newValueFn func(curr float64) float64) {
+func (c *connType) updateAggFnValue(fieldName string, newValueFn func(curr float64) float64) {
 	v, ok := c.aggFields[fieldName]
 	if !ok {
 		log.Panicf("tried updating missing field %v", fieldName)
 	}
-	c.aggFields[fieldName] = newValueFn(v)
-}
 
-func (c *connType) addCp(fieldName string) {
-	c.cpFields[fieldName] = nil
-}
-
-func (c *connType) updateCpValue(fieldName string, newValue interface{}) {
-	_, ok := c.cpFields[fieldName]
-	if !ok {
-		log.Panicf("tried updating missing field %v", fieldName)
+	// existing value must be float64 for function aggregation
+	switch value := v.(type) {
+	case float64:
+		c.aggFields[fieldName] = newValueFn(value)
+	default:
+		log.Panicf("tried to aggregate non float64 field %v value %v", fieldName, v)
 	}
-	c.cpFields[fieldName] = newValue
 }
 
 func (c *connType) setExpiryTime(t time.Time) {
@@ -105,10 +100,6 @@ func (c *connType) getNextHeartbeatTime() time.Time {
 func (c *connType) toGenericMap() config.GenericMap {
 	gm := config.GenericMap{}
 	for k, v := range c.aggFields {
-		gm[k] = v
-	}
-
-	for k, v := range c.cpFields {
 		gm[k] = v
 	}
 
@@ -191,8 +182,7 @@ type connBuilder struct {
 func NewConnBuilder(metrics *metricsType) *connBuilder {
 	return &connBuilder{
 		conn: &connType{
-			aggFields:  make(map[string]float64),
-			cpFields:   make(map[string]interface{}),
+			aggFields:  make(map[string]interface{}),
 			keys:       config.GenericMap{},
 			isReported: false,
 		},
@@ -231,13 +221,6 @@ func (cb *connBuilder) KeysFrom(flowLog config.GenericMap, kd api.KeyDefinition,
 func (cb *connBuilder) Aggregators(aggs []aggregator) *connBuilder {
 	for _, agg := range aggs {
 		agg.addField(cb.conn)
-	}
-	return cb
-}
-
-func (cb *connBuilder) Copiers(cps []copier) *connBuilder {
-	for _, cp := range cps {
-		cp.addField(cb.conn)
 	}
 	return cb
 }

@@ -95,10 +95,6 @@ func ConnTrackOperationName(operation string) string {
 	return GetEnumName(ConnTrackOperationEnum{}, operation)
 }
 
-func IsConnTrackOperationCopy(name string) bool {
-	return name == ConnTrackOperationName("CopyFirst") || name == ConnTrackOperationName("CopyLast")
-}
-
 type ConnTrackTCPFlags struct {
 	FieldName           string `yaml:"fieldName,omitempty" json:"fieldName,omitempty" doc:"name of the field containing TCP flags"`
 	DetectEndConnection bool   `yaml:"detectEndConnection,omitempty" json:"detectEndConnection,omitempty" doc:"detect end connections by FIN_ACK flag"`

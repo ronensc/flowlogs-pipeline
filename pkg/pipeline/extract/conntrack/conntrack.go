@@ -49,7 +49,6 @@ type conntrackImpl struct {
 	hashProvider                     func() hash.Hash64
 	connStore                        *connectionStore
 	aggregators                      []aggregator
-	copiers                          []copier
 	shouldOutputFlowLogs             bool
 	shouldOutputNewConnection        bool
 	shouldOutputEndConnection        bool
@@ -85,7 +84,6 @@ func (ct *conntrackImpl) Extract(flowLogs []config.GenericMap) []config.GenericM
 					ShouldSwapAB(ct.config.TCPFlags.SwapAB && ct.shouldSwapAB(fl)).
 					KeysFrom(fl, ct.config.KeyDefinition, ct.endpointAFields, ct.endpointBFields).
 					Aggregators(ct.aggregators).
-					Copiers(ct.copiers).
 					Build()
 				ct.connStore.addConnection(computedHash.hashTotal, conn)
 				ct.connStore.updateNextHeartbeatTime(computedHash.hashTotal)
@@ -171,11 +169,7 @@ func (ct *conntrackImpl) prepareHeartbeatRecords() []config.GenericMap {
 func (ct *conntrackImpl) updateConnection(conn connection, flowLog config.GenericMap, flowLogHash totalHashType, isNew bool) {
 	d := ct.getFlowLogDirection(conn, flowLogHash)
 	for _, agg := range ct.aggregators {
-		agg.update(conn, flowLog, d)
-	}
-
-	for _, cp := range ct.copiers {
-		cp.update(conn, flowLog, isNew)
+		agg.update(conn, flowLog, d, isNew)
 	}
 
 	if ct.config.TCPFlags.DetectEndConnection && ct.isLastFlowLogOfConnection(flowLog) {
@@ -232,22 +226,13 @@ func NewConnectionTrack(opMetrics *operational.Metrics, params config.StageParam
 		return nil, fmt.Errorf("ConnectionTrack config is invalid: %w", err)
 	}
 
-	var copiers []copier
 	var aggregators []aggregator
 	for _, of := range cfg.OutputFields {
-		if api.IsConnTrackOperationCopy(of.Operation) {
-			cp, err := newCopier(of)
-			if err != nil {
-				return nil, fmt.Errorf("error creating aggregator: %w", err)
-			}
-			copiers = append(copiers, cp)
-		} else {
-			agg, err := newAggregator(of)
-			if err != nil {
-				return nil, fmt.Errorf("error creating aggregator: %w", err)
-			}
-			aggregators = append(aggregators, agg)
+		agg, err := newAggregator(of)
+		if err != nil {
+			return nil, fmt.Errorf("error creating aggregator: %w", err)
 		}
+		aggregators = append(aggregators, agg)
 	}
 	shouldOutputFlowLogs := false
 	shouldOutputNewConnection := false
@@ -278,7 +263,6 @@ func NewConnectionTrack(opMetrics *operational.Metrics, params config.StageParam
 		endpointBFields:           endpointBFields,
 		hashProvider:              fnv.New64a,
 		aggregators:               aggregators,
-		copiers:                   copiers,
 		shouldOutputFlowLogs:      shouldOutputFlowLogs,
 		shouldOutputNewConnection: shouldOutputNewConnection,
 		shouldOutputEndConnection: shouldOutputEndConnection,

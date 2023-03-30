@@ -56,27 +56,27 @@ func TestNewAggregator_Valid(t *testing.T) {
 		{
 			name:        "Default SplitAB",
 			outputField: api.OutputField{Name: "MyAgg", Operation: "sum"},
-			expected:    &aSum{aggregateBase{"MyAgg", "MyAgg", false, 0}},
+			expected:    &aSum{aggregateBase{"MyAgg", "MyAgg", false, float64(0)}},
 		},
 		{
 			name:        "Default input",
 			outputField: api.OutputField{Name: "MyAgg", Operation: "sum", SplitAB: true},
-			expected:    &aSum{aggregateBase{"MyAgg", "MyAgg", true, 0}},
+			expected:    &aSum{aggregateBase{"MyAgg", "MyAgg", true, float64(0)}},
 		},
 		{
 			name:        "Custom input",
 			outputField: api.OutputField{Name: "MyAgg", Operation: "sum", Input: "MyInput"},
-			expected:    &aSum{aggregateBase{"MyInput", "MyAgg", false, 0}},
+			expected:    &aSum{aggregateBase{"MyInput", "MyAgg", false, float64(0)}},
 		},
 		{
 			name:        "OperationType sum",
 			outputField: api.OutputField{Name: "MyAgg", Operation: "sum"},
-			expected:    &aSum{aggregateBase{"MyAgg", "MyAgg", false, 0}},
+			expected:    &aSum{aggregateBase{"MyAgg", "MyAgg", false, float64(0)}},
 		},
 		{
 			name:        "OperationType count",
 			outputField: api.OutputField{Name: "MyAgg", Operation: "count"},
-			expected:    &aCount{aggregateBase{"MyAgg", "MyAgg", false, 0}},
+			expected:    &aCount{aggregateBase{"MyAgg", "MyAgg", false, float64(0)}},
 		},
 		{
 			name:        "OperationType max",
@@ -125,19 +125,19 @@ func TestAddField_and_Update(t *testing.T) {
 		name      string
 		flowLog   config.GenericMap
 		direction direction
-		expected  map[string]float64
+		expected  map[string]interface{}
 	}{
 		{
 			name:      "flowLog 1",
 			flowLog:   newMockFlowLog(ipA, portA, ipB, portB, protocolA, flowDir, 100, 10, false),
 			direction: dirAB,
-			expected:  map[string]float64{"Bytes_AB": 100, "Bytes_BA": 0, "Packets": 10, "maxFlowLogBytes": 100, "minFlowLogBytes": 100, "numFlowLogs": 1},
+			expected:  map[string]interface{}{"Bytes_AB": float64(100), "Bytes_BA": float64(0), "Packets": float64(10), "maxFlowLogBytes": float64(100), "minFlowLogBytes": float64(100), "numFlowLogs": float64(1)},
 		},
 		{
 			name:      "flowLog 2",
 			flowLog:   newMockFlowLog(ipA, portA, ipB, portB, protocolA, flowDir, 200, 20, false),
 			direction: dirBA,
-			expected:  map[string]float64{"Bytes_AB": 100, "Bytes_BA": 200, "Packets": 30, "maxFlowLogBytes": 200, "minFlowLogBytes": 100, "numFlowLogs": 2},
+			expected:  map[string]interface{}{"Bytes_AB": float64(100), "Bytes_BA": float64(200), "Packets": float64(30), "maxFlowLogBytes": float64(200), "minFlowLogBytes": float64(100), "numFlowLogs": float64(2)},
 		},
 	}
 
@@ -145,13 +145,110 @@ func TestAddField_and_Update(t *testing.T) {
 	for _, agg := range aggs {
 		agg.addField(conn)
 	}
-	expectedInits := map[string]float64{"Bytes_AB": 0, "Bytes_BA": 0, "Packets": 0, "maxFlowLogBytes": -math.MaxFloat64, "minFlowLogBytes": math.MaxFloat64, "numFlowLogs": 0}
+	expectedInits := map[string]interface{}{"Bytes_AB": float64(0), "Bytes_BA": float64(0), "Packets": float64(0), "maxFlowLogBytes": float64(-math.MaxFloat64), "minFlowLogBytes": float64(math.MaxFloat64), "numFlowLogs": float64(0)}
 	require.Equal(t, expectedInits, conn.(*connType).aggFields)
+
+	for i, test := range table {
+		t.Run(test.name, func(t *testing.T) {
+			for _, agg := range aggs {
+				agg.update(conn, test.flowLog, test.direction, i == 0)
+			}
+			require.Equal(t, test.expected, conn.(*connType).aggFields)
+		})
+	}
+}
+
+func TestNewCopy_Invalid(t *testing.T) {
+	var err error
+
+	_, err = newAggregator(api.OutputField{
+		Operation: "copyFirst",
+		SplitAB:   true,
+		Input:     "Input",
+	})
+	require.NotNil(t, err)
+}
+
+func TestNewCopy_Valid(t *testing.T) {
+	table := []struct {
+		name        string
+		outputField api.OutputField
+		expected    aggregator
+	}{
+		{
+			name:        "Default first",
+			outputField: api.OutputField{Name: "MyCp", Operation: "copyFirst"},
+			expected:    &aFirst{aggregateBase{"MyCp", "MyCp", false, nil}},
+		},
+		{
+			name:        "Custom input first",
+			outputField: api.OutputField{Name: "MyCp", Operation: "copyFirst", Input: "MyInput"},
+			expected:    &aFirst{aggregateBase{"MyInput", "MyCp", false, nil}},
+		},
+		{
+			name:        "Default last",
+			outputField: api.OutputField{Name: "MyCp", Operation: "copyLast"},
+			expected:    &aLast{aggregateBase{"MyCp", "MyCp", false, nil}},
+		},
+	}
 
 	for _, test := range table {
 		t.Run(test.name, func(t *testing.T) {
-			for _, agg := range aggs {
-				agg.update(conn, test.flowLog, test.direction)
+			c, err := newAggregator(test.outputField)
+			require.NoError(t, err)
+			require.Equal(t, test.expected, c)
+		})
+	}
+}
+
+func TestCopy_UpdateFirst(t *testing.T) {
+	ofs := []api.OutputField{
+		{Input: "FlowDirection", Name: "FirstFlowDirection", Operation: "copyFirst"},
+		{Input: "FlowDirection", Name: "LastFlowDirection", Operation: "copyLast"},
+	}
+	var cs []aggregator
+	for _, of := range ofs {
+		c, err := newAggregator(of)
+		require.NoError(t, err)
+		cs = append(cs, c)
+	}
+
+	ipA := "10.0.0.1"
+	ipB := "10.0.0.2"
+	portA := 1
+	portB := 9002
+	protocolA := 6
+	flowDirA := 0
+	flowDirB := 1
+
+	table := []struct {
+		name     string
+		flowLog  config.GenericMap
+		expected map[string]interface{}
+	}{
+		{
+			name:     "flowLog 1",
+			flowLog:  newMockFlowLog(ipA, portA, ipB, portB, protocolA, flowDirA, 100, 10, false),
+			expected: map[string]interface{}{"FirstFlowDirection": 0, "LastFlowDirection": 0},
+		},
+		{
+			name:     "flowLog 2",
+			flowLog:  newMockFlowLog(ipA, portA, ipB, portB, protocolA, flowDirB, 200, 20, false),
+			expected: map[string]interface{}{"FirstFlowDirection": 0, "LastFlowDirection": 1},
+		},
+	}
+
+	conn := NewConnBuilder(nil).Build()
+	for _, agg := range cs {
+		agg.addField(conn)
+	}
+	expectedInits := map[string]interface{}{"FirstFlowDirection": nil, "LastFlowDirection": nil}
+	require.Equal(t, expectedInits, conn.(*connType).aggFields)
+
+	for i, test := range table {
+		t.Run(test.name, func(t *testing.T) {
+			for _, cp := range cs {
+				cp.update(conn, test.flowLog, 0, i == 0)
 			}
 			require.Equal(t, test.expected, conn.(*connType).aggFields)
 		})
