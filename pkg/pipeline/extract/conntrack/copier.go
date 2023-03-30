@@ -8,7 +8,7 @@ import (
 )
 
 type copier interface {
-	// addField adds an copy field to the connection
+	// addField adds a copy field to the connection
 	addField(conn connection)
 	// update updates the field value in the connection based on the flow log.
 	update(conn connection, flowLog config.GenericMap, isNew bool)
