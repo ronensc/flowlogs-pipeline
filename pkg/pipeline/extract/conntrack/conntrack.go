@@ -62,6 +62,11 @@ func (ct *conntrackImpl) Extract(flowLogs []config.GenericMap) []config.GenericM
 
 	var outputRecords []config.GenericMap
 	for _, fl := range flowLogs {
+		if fl.IsDuplicate() {
+			log.Debugf("skipping duplicated flow log %v", fl)
+			ct.metrics.inputRecords.WithLabelValues("duplicate").Inc()
+			continue
+		}
 		computedHash, err := ComputeHash(fl, ct.config.KeyDefinition, ct.hashProvider())
 		if err != nil {
 			log.Warningf("skipping flow log %v: %v", fl, err)
@@ -164,11 +169,9 @@ func (ct *conntrackImpl) prepareHeartbeatRecords() []config.GenericMap {
 }
 
 func (ct *conntrackImpl) updateConnection(conn connection, flowLog config.GenericMap, flowLogHash totalHashType, isNew bool) {
-	if !flowLog.IsDuplicate() {
-		d := ct.getFlowLogDirection(conn, flowLogHash)
-		for _, agg := range ct.aggregators {
-			agg.update(conn, flowLog, d)
-		}
+	d := ct.getFlowLogDirection(conn, flowLogHash)
+	for _, agg := range ct.aggregators {
+		agg.update(conn, flowLog, d)
 	}
 
 	for _, cp := range ct.copiers {
