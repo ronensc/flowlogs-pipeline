@@ -100,10 +100,16 @@ func (cs *connectionStore) expireConnection(hashId uint64) {
 	}
 	groupIdx := cs.hashId2groupIdx[hashId]
 	mom := cs.groups[groupIdx].mom
-	// Set the expiry time to the zero value of Time
-	conn.setExpiryTime(time.Time{})
-	// Move to the front of the list
-	err := mom.MoveToFront(utils.Key(hashId), expiryOrder)
+	// Set the expiry time to half of EndConnectionTimeout
+	timeoutMs := cs.groups[groupIdx].scheduling.EndConnectionTimeout.Duration.Milliseconds()
+	updatedExpiry := cs.now().Add(time.Duration(timeoutMs/2) * time.Millisecond)
+	conn.setExpiryTime(updatedExpiry)
+	// Move to the proper position in the list
+	err := mom.MoveToX(utils.Key(hashId), expiryOrder, func(r utils.Record) (isBefore bool) {
+		conn := r.(connection)
+		expiryTime := conn.getExpiryTime()
+		return updatedExpiry.Before(expiryTime)
+	})
 	if err != nil {
 		log.Panicf("BUG. Can't update connection expiry time for hash %x: %v", hashId, err)
 		return

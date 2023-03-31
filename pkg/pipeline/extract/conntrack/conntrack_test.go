@@ -1046,21 +1046,21 @@ func TestDetectEndConnection(t *testing.T) {
 			"5s: end connection",
 			startTime.Add(5 * time.Second),
 			[]config.GenericMap{flTCP2},
-			[]config.GenericMap{
-				newMockRecordEndConnAB(ipA, portA, ipB, portB, protocolTCP, 111, 222, 11, 22, 2).withHash(hashIdTCP).get(),
-			},
+			[]config.GenericMap(nil),
 		},
 		{
-			"10s: end connection duplicated",
-			startTime.Add(10 * time.Second),
+			"6s: end connection duplicated",
+			startTime.Add(6 * time.Second),
 			[]config.GenericMap{flTCP2Duplicated},
 			[]config.GenericMap(nil),
 		},
 		{
-			"21s: no end connection",
+			"15s: end connection without duplicated",
 			startTime.Add(21 * time.Second),
 			[]config.GenericMap{},
-			nil,
+			[]config.GenericMap{
+				newMockRecordEndConnAB(ipA, portA, ipB, portB, protocolTCP, 111, 222, 11, 22, 2).withHash(hashIdTCP).get(),
+			},
 		},
 	}
 
