@@ -120,7 +120,7 @@ func TestConnTrack(t *testing.T) {
 	}, test2.Interval(10*time.Millisecond))
 
 	// Wait a moment to make the connections expired
-	time.Sleep(2 * time.Second)
+	time.Sleep(5 * time.Second)
 
 	// Send something to the pipeline to allow the connection tracking output end connection records
 	in <- config.GenericMap{"DstAddr": "1.2.3.4"}

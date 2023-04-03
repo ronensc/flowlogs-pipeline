@@ -33,7 +33,7 @@ type aggregator interface {
 	// addField adds an aggregate field to the connection
 	addField(conn connection)
 	// update updates the aggregate field in the connection based on the flow log.
-	update(conn connection, flowLog config.GenericMap, d direction, isNew bool)
+	update(conn connection, flowLog config.GenericMap, d direction, isFirst bool)
 }
 
 type aggregateBase struct {
@@ -78,10 +78,10 @@ func newAggregator(of api.OutputField) (aggregator, error) {
 	case api.ConnTrackOperationName("Max"):
 		aggBase.initVal = -math.MaxFloat64
 		agg = &aMax{aggBase}
-	case api.ConnTrackOperationName("CopyFirst"):
+	case api.ConnTrackOperationName("First"):
 		aggBase.initVal = nil
 		agg = &aFirst{aggBase}
-	case api.ConnTrackOperationName("CopyLast"):
+	case api.ConnTrackOperationName("Last"):
 		aggBase.initVal = nil
 		agg = &aLast{aggBase}
 	default:

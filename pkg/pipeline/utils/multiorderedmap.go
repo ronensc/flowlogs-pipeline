@@ -31,7 +31,6 @@ import (
 type Key uint64
 type Record interface{}
 type OrderID string
-type isBeforeFunc func(Record) (isBefore bool)
 type processRecordFunc func(Record) (delete, stop bool)
 
 type recordWrapper struct {
@@ -110,40 +109,6 @@ func (mom MultiOrderedMap) MoveToBack(key Key, orderID OrderID) error {
 	}
 	mom.orders[orderID].MoveToBack(elem)
 	return nil
-}
-
-func (mom MultiOrderedMap) MoveToX(key Key, orderID OrderID, f isBeforeFunc) error {
-	rw, found := mom.m[key]
-	if !found {
-		return fmt.Errorf("can't MoveToX non-existing key %x (order id %q)", key, orderID)
-	}
-	elem, found := rw.orderID2element[orderID]
-	if !found {
-		return fmt.Errorf("can't MoveToX non-existing order id %q (key %x)", orderID, key)
-	}
-
-	if _, found := mom.orders[orderID]; !found {
-		panic(fmt.Sprintf("Unknown order id %q", orderID))
-	}
-
-	found = false
-	var next *list.Element
-	for e := mom.orders[orderID].Front(); e != nil; e = next {
-		rw := e.Value.(*recordWrapper)
-		next = e.Next()
-		isBefore := f(rw.record)
-		if isBefore {
-			found = true
-			mom.orders[orderID].MoveBefore(elem, e)
-			break
-		}
-	}
-
-	if !found {
-		mom.orders[orderID].MoveToBack(elem)
-	}
-	return nil
-
 }
 
 // MoveToFront moves the record of key `key` to the front of orderID. If the key or the orderID doesn't exist, an error

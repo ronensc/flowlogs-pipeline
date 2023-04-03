@@ -15,10 +15,18 @@ Each table below provides documentation for an exported flowlogs-pipeline operat
 | **Labels** | classification | 
 
 
-### conntrack_memory_connections
-| **Name** | conntrack_memory_connections | 
+### conntrack_memory_connections_expired
+| **Name** | conntrack_memory_connections_expired | 
 |:---|:---|
-| **Description** | The total number of tracked connections in memory. | 
+| **Description** | The total number of tracked expired connections in memory. | 
+| **Type** | gauge | 
+| **Labels** | group | 
+
+
+### conntrack_memory_connections_running
+| **Name** | conntrack_memory_connections_running | 
+|:---|:---|
+| **Description** | The total number of tracked running connections in memory. | 
 | **Type** | gauge | 
 | **Labels** | group | 
 

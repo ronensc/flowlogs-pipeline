@@ -77,12 +77,12 @@ type OutputField struct {
 }
 
 type ConnTrackOperationEnum struct {
-	Sum       string `yaml:"sum" json:"sum" doc:"sum"`
-	Count     string `yaml:"count" json:"count" doc:"count"`
-	Min       string `yaml:"min" json:"min" doc:"min"`
-	Max       string `yaml:"max" json:"max" doc:"max"`
-	CopyFirst string `yaml:"copyFirst" json:"copyFirst" doc:"copyFirst"`
-	CopyLast  string `yaml:"copyLast" json:"copyLast" doc:"copyLast"`
+	Sum   string `yaml:"sum" json:"sum" doc:"sum"`
+	Count string `yaml:"count" json:"count" doc:"count"`
+	Min   string `yaml:"min" json:"min" doc:"min"`
+	Max   string `yaml:"max" json:"max" doc:"max"`
+	First string `yaml:"first" json:"first" doc:"first"`
+	Last  string `yaml:"last" json:"last" doc:"last"`
 }
 
 type ConnTrackSchedulingGroup struct {
@@ -259,7 +259,7 @@ func isOperationValid(value string, splitAB bool) bool {
 	case ConnTrackOperationName("Count"):
 	case ConnTrackOperationName("Min"):
 	case ConnTrackOperationName("Max"):
-	case ConnTrackOperationName("CopyFirst"), ConnTrackOperationName("CopyLast"):
+	case ConnTrackOperationName("First"), ConnTrackOperationName("Last"):
 		valid = !splitAB
 	default:
 		valid = false

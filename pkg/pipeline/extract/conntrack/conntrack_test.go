@@ -875,8 +875,9 @@ func assertStoreConsistency(t *testing.T, extractor extract.Extractor) {
 	groupsLenSlice := make([]int, 0)
 	sumGroupsLen := 0
 	for _, g := range store.groups {
-		sumGroupsLen += g.mom.Len()
-		groupsLenSlice = append(groupsLenSlice, g.mom.Len())
+		sumGroupsLen += g.expiredMom.Len()
+		sumGroupsLen += g.runningMom.Len()
+		groupsLenSlice = append(groupsLenSlice, g.runningMom.Len())
 	}
 	require.Equal(t, hashLen, sumGroupsLen, "hashLen(=%v) != sum(%v)", hashLen, groupsLenSlice)
 }
@@ -1055,8 +1056,8 @@ func TestDetectEndConnection(t *testing.T) {
 			[]config.GenericMap(nil),
 		},
 		{
-			"15s: end connection without duplicated",
-			startTime.Add(21 * time.Second),
+			"20s: end connection without duplicated",
+			startTime.Add(20 * time.Second),
 			[]config.GenericMap{},
 			[]config.GenericMap{
 				newMockRecordEndConnAB(ipA, portA, ipB, portB, protocolTCP, 111, 222, 11, 22, 2).withHash(hashIdTCP).get(),

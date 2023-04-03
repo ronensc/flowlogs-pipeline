@@ -23,9 +23,16 @@ import (
 )
 
 var (
-	connStoreLengthDef = operational.DefineMetric(
-		"conntrack_memory_connections",
-		"The total number of tracked connections in memory.",
+	connStoreRunningLengthDef = operational.DefineMetric(
+		"conntrack_memory_connections_running",
+		"The total number of tracked running connections in memory.",
+		operational.TypeGauge,
+		"group",
+	)
+
+	connStoreExpiredLengthDef = operational.DefineMetric(
+		"conntrack_memory_connections_expired",
+		"The total number of tracked expired connections in memory.",
 		operational.TypeGauge,
 		"group",
 	)
@@ -53,17 +60,19 @@ var (
 )
 
 type metricsType struct {
-	connStoreLength *prometheus.GaugeVec
-	inputRecords    *prometheus.CounterVec
-	outputRecords   *prometheus.CounterVec
-	tcpFlags        *prometheus.CounterVec
+	runningConnStoreLength *prometheus.GaugeVec
+	expiredConnStoreLength *prometheus.GaugeVec
+	inputRecords           *prometheus.CounterVec
+	outputRecords          *prometheus.CounterVec
+	tcpFlags               *prometheus.CounterVec
 }
 
 func newMetrics(opMetrics *operational.Metrics) *metricsType {
 	return &metricsType{
-		connStoreLength: opMetrics.NewGaugeVec(&connStoreLengthDef),
-		inputRecords:    opMetrics.NewCounterVec(&inputRecordsDef),
-		outputRecords:   opMetrics.NewCounterVec(&outputRecordsDef),
-		tcpFlags:        opMetrics.NewCounterVec(&tcpFlagsDef),
+		runningConnStoreLength: opMetrics.NewGaugeVec(&connStoreRunningLengthDef),
+		expiredConnStoreLength: opMetrics.NewGaugeVec(&connStoreExpiredLengthDef),
+		inputRecords:           opMetrics.NewCounterVec(&inputRecordsDef),
+		outputRecords:          opMetrics.NewCounterVec(&outputRecordsDef),
+		tcpFlags:               opMetrics.NewCounterVec(&tcpFlagsDef),
 	}
 }
