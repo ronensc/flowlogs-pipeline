@@ -181,7 +181,7 @@ func (ct *conntrackImpl) updateConnection(conn connection, flowLog config.Generi
 }
 
 func (ct *conntrackImpl) isLastFlowLogOfConnection(flowLog config.GenericMap) bool {
-	return ct.containsTcpFlag(flowLog, FIN_ACK_FLAG)
+	return ct.containsTcpFlag(flowLog, FIN_FLAG)
 }
 
 func (ct *conntrackImpl) shouldSwapAB(flowLog config.GenericMap) bool {

@@ -97,7 +97,7 @@ func ConnTrackOperationName(operation string) string {
 
 type ConnTrackTCPFlags struct {
 	FieldName           string `yaml:"fieldName,omitempty" json:"fieldName,omitempty" doc:"name of the field containing TCP flags"`
-	DetectEndConnection bool   `yaml:"detectEndConnection,omitempty" json:"detectEndConnection,omitempty" doc:"detect end connections by FIN_ACK flag"`
+	DetectEndConnection bool   `yaml:"detectEndConnection,omitempty" json:"detectEndConnection,omitempty" doc:"detect end connections by FIN flag"`
 	SwapAB              bool   `yaml:"swapAB,omitempty" json:"swapAB,omitempty" doc:"swap source and destination when the first flowlog contains the SYN_ACK flag"`
 }
 
