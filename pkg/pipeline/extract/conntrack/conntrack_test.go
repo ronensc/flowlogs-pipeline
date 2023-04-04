@@ -1136,3 +1136,89 @@ func TestSwapAB(t *testing.T) {
 	exposed := test.ReadExposedMetrics(t)
 	require.Contains(t, exposed, `conntrack_tcp_flags{action="swapAB"} 1`)
 }
+
+func TestExpiringConnection(t *testing.T) {
+	test.ResetPromRegistry()
+	clk := clock.NewMock()
+	defaultUpdateConnectionInterval := 30 * time.Second
+	defaultEndConnectionTimeout := 10 * time.Second
+	conf := buildMockConnTrackConfig(true, []string{"newConnection", "endConnection"},
+		defaultUpdateConnectionInterval, defaultEndConnectionTimeout)
+	tcpFlagsFieldName := "TCPFlags"
+	conf.Extract.ConnTrack.TCPFlags = api.ConnTrackTCPFlags{
+		FieldName:           tcpFlagsFieldName,
+		DetectEndConnection: true,
+	}
+	ct, err := NewConnectionTrack(opMetrics, *conf, clk)
+	require.NoError(t, err)
+
+	ipA := "10.0.0.1"
+	ipB := "10.0.0.2"
+	portA := 9001
+	portB := 9002
+	protocolTCP := 6
+	flowDir := 0
+	hashIdTCP := "705baa5149302fa1"
+	flTCP1 := newMockFlowLog(ipA, portA, ipB, portB, protocolTCP, flowDir, 111, 11, false)
+	flTCP2 := newMockFlowLog(ipB, portB, ipA, portA, protocolTCP, flowDir, 222, 22, false)
+	flTCP2[tcpFlagsFieldName] = FIN_FLAG
+	flTCP3 := newMockFlowLog(ipA, portA, ipB, portB, protocolTCP, flowDir, 333, 33, false)
+	flTCP4 := newMockFlowLog(ipA, portA, ipB, portB, protocolTCP, flowDir, 555, 55, false)
+
+	startTime := clk.Now()
+	table := []struct {
+		name          string
+		time          time.Time
+		inputFlowLogs []config.GenericMap
+		expected      []config.GenericMap
+	}{
+		{
+			"start: new connection",
+			startTime.Add(0 * time.Second),
+			[]config.GenericMap{flTCP1},
+			[]config.GenericMap{
+				newMockRecordNewConnAB(ipA, portA, ipB, portB, protocolTCP, 111, 0, 11, 0, 1).withHash(hashIdTCP).markFirst().get(),
+			},
+		},
+		{
+			"5s: FIN flow log to end the connection",
+			startTime.Add(5 * time.Second),
+			[]config.GenericMap{flTCP2},
+			[]config.GenericMap(nil),
+		},
+		{
+			"10s: flow log after FIN is still part of the connection",
+			startTime.Add(10 * time.Second),
+			[]config.GenericMap{flTCP3},
+			[]config.GenericMap(nil),
+		},
+		{
+			"16s: end connection. The after-FIN-flow-log doesn't extend the connection's life",
+			startTime.Add(16 * time.Second),
+			[]config.GenericMap{},
+			[]config.GenericMap{
+				newMockRecordEndConnAB(ipA, portA, ipB, portB, protocolTCP, 444, 222, 44, 22, 3).withHash(hashIdTCP).get(),
+			},
+		},
+		{
+			"17s: another flow log will create a new connection",
+			startTime.Add(17 * time.Second),
+			[]config.GenericMap{flTCP4},
+			[]config.GenericMap{
+				newMockRecordNewConnAB(ipA, portA, ipB, portB, protocolTCP, 555, 0, 55, 0, 1).withHash(hashIdTCP).markFirst().get(),
+			},
+		},
+	}
+
+	var prevTime time.Time
+	for _, tt := range table {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Less(t, prevTime, tt.time)
+			prevTime = tt.time
+			clk.Set(tt.time)
+			actual := ct.Extract(tt.inputFlowLogs)
+			require.Equal(t, tt.expected, actual)
+			assertStoreConsistency(t, ct)
+		})
+	}
+}
