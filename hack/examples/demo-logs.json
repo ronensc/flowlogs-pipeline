@@ -1,0 +1,2 @@
+{"code":"red", "DstAddr":"10.130.2.2","DstPort":36936,"SrcAddr":"10.130.2.13","SrcPort":3100,"TimeReceived":1637501832}
+{"code":"green", "DstAddr":"10.0.156.12","DstPort":80,"SrcAddr":"10.129.2.11","SrcPort":45018,"TimeReceived":1637501832}

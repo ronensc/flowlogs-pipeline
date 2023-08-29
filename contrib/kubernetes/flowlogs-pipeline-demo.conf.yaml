@@ -1,0 +1,40 @@
+log-level: info
+metricsSettings:
+  port: 9102
+  prefix: flp_op_
+pipeline:
+- name: ingest_collector
+- name: transform_network
+  follows: ingest_collector
+- name: write_stdout
+  follows: transform_network
+
+
+parameters:
+- name: ingest_collector
+  ingest:
+    type: file
+    file:
+      decoder:
+        type: "json"
+      filename: "./hack/examples/demo-logs.json"
+- name: transform_network
+  transform:
+    type: network
+    network:
+      rules:
+        - type: add_if
+          input: code
+          parameters: '== "red"'
+          output: classification
+          assignee: -----HIGH-----
+        - type: add_if
+          input: code
+          parameters: '== "green"'
+          output: classification
+          assignee: -----LOW-----
+- name: write_stdout
+  write:
+    type: stdout
+    stdout:
+      format: json
